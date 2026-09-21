@@ -2,6 +2,7 @@
 
 namespace CsnMonitor\Support;
 
+use CsnMonitor\Jobs\ReportAccessLogToMonitor;
 use CsnMonitor\Jobs\ReportErrorToMonitor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Bus;
@@ -48,10 +49,11 @@ class MonitorReporter
             return;
         }
 
-        $packageRoot = dirname(__DIR__, 2).DIRECTORY_SEPARATOR;
-
         foreach ($e->getTrace() as $frame) {
-            if (isset($frame['file']) && strpos($frame['file'], $packageRoot) === 0) {
+            if (in_array($frame['class'] ?? null, [
+                ReportAccessLogToMonitor::class,
+                ReportErrorToMonitor::class,
+            ], true)) {
                 return;
             }
         }

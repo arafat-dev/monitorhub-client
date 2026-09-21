@@ -22,10 +22,19 @@ application's `.env`:
 MONITOR_URL=https://monitor.example.com
 MONITOR_PROJECT_KEY=generated-project-api-key
 MONITOR_ENABLED=true
+MONITOR_CAPTURE_ACCESS_LOGS=true
 ```
 
 Laravel discovers `CsnMonitor\MonitorClientServiceProvider` automatically. No
 manual provider, exception handler, or middleware registration is required.
+
+After installing or updating the package, clear cached bootstrap data and
+restart long-running queue workers:
+
+```bash
+php artisan optimize:clear
+php artisan queue:restart
+```
 
 Publish the configuration only when the defaults need to be customized:
 
@@ -43,6 +52,14 @@ php artisan queue:work
 ```
 
 Use `QUEUE_CONNECTION=sync` only for local testing when no worker is running.
+
+The package dispatches one access-log job for each actual HTTP request. A
+request that throws an exception also dispatches one separate error job. A
+single browser action may make multiple HTTP requests, but duplicate middleware
+execution for the same request is ignored.
+
+Set `MONITOR_CAPTURE_ACCESS_LOGS=false` to collect exceptions only and avoid an
+access-log job for every request.
 
 ## Captured Data
 

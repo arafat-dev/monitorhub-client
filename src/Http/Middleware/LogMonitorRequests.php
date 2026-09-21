@@ -14,6 +14,8 @@ class LogMonitorRequests
 {
     private const STARTED_AT = 'monitor.started_at';
 
+    private const DISPATCHED = 'monitor.access_log_dispatched';
+
     public function handle(Request $request, Closure $next): Response
     {
         $request->attributes->set(self::STARTED_AT, microtime(true));
@@ -27,9 +29,17 @@ class LogMonitorRequests
      */
     public function terminate(Request $request, Response $response): void
     {
-        if (! MonitorReporter::shouldHandle() || MonitorReporter::isExceptPath($request->path())) {
+        if (! MonitorReporter::shouldHandle()
+            || ! config('monitor.capture_access_logs', true)
+            || MonitorReporter::isExceptPath($request->path())) {
             return;
         }
+
+        if ($request->attributes->get(self::DISPATCHED, false)) {
+            return;
+        }
+
+        $request->attributes->set(self::DISPATCHED, true);
 
         $contentType = (string) $response->headers->get('Content-Type');
         $capturesBody = strpos($contentType, 'text/') !== false

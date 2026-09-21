@@ -10,6 +10,9 @@ return [
     // Master switch — set MONITOR_ENABLED=false to silence everything (e.g. locally)
     'enabled' => env('MONITOR_ENABLED', true),
 
+    // Disable request/response logging while keeping exception reporting active.
+    'capture_access_logs' => env('MONITOR_CAPTURE_ACCESS_LOGS', true),
+
     // Automatically push the request-logging middleware onto these route
     // middleware groups. Set to [] and register LogMonitorRequests manually
     // if you want finer control.
@@ -24,7 +27,7 @@ return [
     // URL paths (start-with match) that are never logged or reported —
     // avoid noise from health checks and (if hosted on same domain) monitor's own callback.
     'except_paths' => [
-        'up', 'health', '_debugbar',
+        'up', 'health', '_debugbar', 'favicon.ico', 'robots.txt',
     ],
 
     // Cap response body size stored per access-log line (bytes) to keep the day-wise files small.
