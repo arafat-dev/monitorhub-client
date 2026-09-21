@@ -1,8 +1,9 @@
 # MonitorHub Client
 
 Composer package for sending reportable Laravel exceptions and HTTP access logs
-to a central MonitorHub installation. The package supports Laravel 10, 11, 12,
-and 13 and is registered through Laravel package discovery.
+to a central MonitorHub installation. The package supports Laravel 7 through
+14 and PHP 7.2.5 through PHP 8.x. It is registered through Laravel package
+discovery.
 
 ## Install
 

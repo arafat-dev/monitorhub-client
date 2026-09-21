@@ -31,7 +31,7 @@ class MonitorClientServiceProvider extends ServiceProvider
         // (default: web + api) so installing the package is enough on its own.
         $kernel = $this->app->make(Kernel::class);
         foreach ((array) config('monitor.auto_middleware_groups', []) as $group) {
-            $kernel->pushMiddlewareToGroup($group, LogMonitorRequests::class);
+            $kernel->appendMiddlewareToGroup($group, LogMonitorRequests::class);
         }
     }
 }

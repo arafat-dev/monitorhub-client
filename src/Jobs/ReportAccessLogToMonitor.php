@@ -12,11 +12,16 @@ class ReportAccessLogToMonitor implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public $tries = 3;
 
-    public int $backoff = 10;
+    public $backoff = 10;
 
-    public function __construct(public array $payload) {}
+    public $payload;
+
+    public function __construct(array $payload)
+    {
+        $this->payload = $payload;
+    }
 
     public function handle(): void
     {

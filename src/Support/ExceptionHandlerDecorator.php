@@ -3,9 +3,9 @@
 namespace CsnMonitor\Support;
 
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use SplObjectStorage;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
-use WeakMap;
 
 /**
  * Wraps the app's real exception handler so every exception is captured
@@ -16,9 +16,14 @@ use WeakMap;
 class ExceptionHandlerDecorator implements ExceptionHandler
 {
     /** Tracks exceptions already sent to the monitor, so report()+render() don't double-send. */
-    private static ?WeakMap $reported = null;
+    private static $reported;
 
-    public function __construct(private ExceptionHandler $handler) {}
+    private $handler;
+
+    public function __construct(ExceptionHandler $handler)
+    {
+        $this->handler = $handler;
+    }
 
     public function report(Throwable $e): void
     {
@@ -37,24 +42,44 @@ class ExceptionHandlerDecorator implements ExceptionHandler
 
     public function render($request, Throwable $e): Response
     {
-        return $this->handler->render($request, $e);
+        try {
+            return $this->handler->render($request, $e);
+        } finally {
+            $this->forgetReported($e);
+        }
     }
 
     public function renderForConsole($output, Throwable $e): void
     {
-        $this->handler->renderForConsole($output, $e);
+        try {
+            $this->handler->renderForConsole($output, $e);
+        } finally {
+            $this->forgetReported($e);
+        }
     }
 
     private function alreadyReported(Throwable $e): bool
     {
-        self::$reported ??= new WeakMap;
+        if (! self::$reported) {
+            self::$reported = new SplObjectStorage;
+        }
 
-        return isset(self::$reported[$e]);
+        return self::$reported->contains($e);
     }
 
     private function markReported(Throwable $e): void
     {
-        self::$reported ??= new WeakMap;
-        self::$reported[$e] = true;
+        if (! self::$reported) {
+            self::$reported = new SplObjectStorage;
+        }
+
+        self::$reported->attach($e);
+    }
+
+    private function forgetReported(Throwable $e): void
+    {
+        if (self::$reported && self::$reported->contains($e)) {
+            self::$reported->detach($e);
+        }
     }
 }

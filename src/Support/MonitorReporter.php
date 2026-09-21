@@ -19,7 +19,7 @@ class MonitorReporter
         foreach ((array) config('monitor.except_paths', []) as $except) {
             $except = trim((string) $except, '/');
 
-            if ($path === $except || str_starts_with($path, $except.'/')) {
+            if ($path === $except || strpos($path, $except.'/') === 0) {
                 return true;
             }
         }
@@ -48,8 +48,10 @@ class MonitorReporter
             return;
         }
 
+        $packageRoot = dirname(__DIR__, 2).DIRECTORY_SEPARATOR;
+
         foreach ($e->getTrace() as $frame) {
-            if (isset($frame['file']) && str_contains($frame['file'], DIRECTORY_SEPARATOR.'monitorhub-client'.DIRECTORY_SEPARATOR)) {
+            if (isset($frame['file']) && strpos($frame['file'], $packageRoot) === 0) {
                 return;
             }
         }
@@ -63,7 +65,7 @@ class MonitorReporter
                 'trace' => $e->getTraceAsString(),
                 'frames' => self::frames($e),
                 'url' => $request ? self::sanitizedUrl($request) : null,
-                'method' => $request?->method(),
+                'method' => $request ? $request->method() : null,
                 'request_data' => $request ? self::sanitize($request->all()) : null,
                 'occurred_at' => now()->toIso8601String(),
             ]));

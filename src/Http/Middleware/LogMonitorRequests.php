@@ -32,10 +32,10 @@ class LogMonitorRequests
         }
 
         $contentType = (string) $response->headers->get('Content-Type');
-        $capturesBody = str_contains($contentType, 'text/')
-            || str_contains($contentType, 'json')
-            || str_contains($contentType, 'xml')
-            || str_contains($contentType, 'javascript');
+        $capturesBody = strpos($contentType, 'text/') !== false
+            || strpos($contentType, 'json') !== false
+            || strpos($contentType, 'xml') !== false
+            || strpos($contentType, 'javascript') !== false;
         $content = $response->getContent();
         $body = $capturesBody && is_string($content) ? $content : null;
         $maxLen = (int) config('monitor.max_response_length', 2000);
