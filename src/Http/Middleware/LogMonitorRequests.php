@@ -6,15 +6,17 @@ use Closure;
 use CsnMonitor\Jobs\ReportAccessLogToMonitor;
 use CsnMonitor\Support\MonitorReporter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class LogMonitorRequests
 {
-    private float $startedAt;
+    private const STARTED_AT = 'monitor.started_at';
 
     public function handle(Request $request, Closure $next): Response
     {
-        $this->startedAt = microtime(true);
+        $request->attributes->set(self::STARTED_AT, microtime(true));
 
         return $next($request);
     }
@@ -29,20 +31,33 @@ class LogMonitorRequests
             return;
         }
 
-        $body = $response->getContent();
+        $contentType = (string) $response->headers->get('Content-Type');
+        $capturesBody = str_contains($contentType, 'text/')
+            || str_contains($contentType, 'json')
+            || str_contains($contentType, 'xml')
+            || str_contains($contentType, 'javascript');
+        $content = $response->getContent();
+        $body = $capturesBody && is_string($content) ? $content : null;
         $maxLen = (int) config('monitor.max_response_length', 2000);
-        if (is_string($body) && strlen($body) > $maxLen) {
-            $body = substr($body, 0, $maxLen).'...(truncated)';
+        if (is_string($body) && mb_strlen($body, '8bit') > $maxLen) {
+            $body = mb_strcut($body, 0, max(0, $maxLen - 14), 'UTF-8').'...(truncated)';
         }
 
-        ReportAccessLogToMonitor::dispatch([
-            'ip' => $request->ip(),
-            'method' => $request->method(),
-            'url' => $request->fullUrl(),
-            'request_data' => MonitorReporter::sanitize($request->except(['password', 'password_confirmation'])),
-            'response' => $body,
-            'status' => $response->getStatusCode(),
-            'duration_ms' => round((microtime(true) - $this->startedAt) * 1000, 2),
-        ]);
+        $startedAt = (float) $request->attributes->get(self::STARTED_AT, microtime(true));
+
+        try {
+            Bus::dispatch(new ReportAccessLogToMonitor([
+                'ip' => $request->ip(),
+                'method' => $request->method(),
+                'url' => MonitorReporter::sanitizedUrl($request),
+                'request_data' => MonitorReporter::sanitize($request->all()),
+                'response' => $body,
+                'status' => $response->getStatusCode(),
+                'duration_ms' => round((microtime(true) - $startedAt) * 1000, 2),
+                'logged_at' => now()->toIso8601String(),
+            ]));
+        } catch (Throwable) {
+            // Telemetry dispatch failures must not affect the monitored response.
+        }
     }
 }

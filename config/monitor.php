@@ -30,7 +30,4 @@ return [
     // Cap response body size stored per access-log line (bytes) to keep the day-wise files small.
     'max_response_length' => 2000,
 
-    // Only send the rendered error-page HTML (for screenshots) when APP_DEBUG is on
-    // and the response looks like an HTML error page.
-    'capture_html_only_in_debug' => true,
 ];

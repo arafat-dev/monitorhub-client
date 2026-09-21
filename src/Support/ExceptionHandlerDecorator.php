@@ -47,14 +47,14 @@ class ExceptionHandlerDecorator implements ExceptionHandler
 
     private function alreadyReported(Throwable $e): bool
     {
-        self::$reported ??= new WeakMap();
+        self::$reported ??= new WeakMap;
 
         return isset(self::$reported[$e]);
     }
 
     private function markReported(Throwable $e): void
     {
-        self::$reported ??= new WeakMap();
+        self::$reported ??= new WeakMap;
         self::$reported[$e] = true;
     }
 }

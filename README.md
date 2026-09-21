@@ -1,59 +1,84 @@
-# csn/monitorhub-client
+# MonitorHub Client
 
-Drop this into any Laravel project (Helpdesk, CRM, CSN Pay, etc.) to report
-its errors and access logs into the central MonitorHub app. Installing it is
-the only step needed — no edits to `Handler.php`, `Kernel.php`, or
-`bootstrap/app.php`.
+Composer package for sending reportable Laravel exceptions and HTTP access logs
+to a central MonitorHub installation. The package supports Laravel 10, 11, 12,
+and 13 and is registered through Laravel package discovery.
 
-## Install (private package, not on Packagist)
+## Install
 
-Put this folder somewhere shared, e.g. `packages/monitorhub-client/`, then in
-the client project's `composer.json`:
+### Private GitHub repository
+
+Add the repository once in the consumer application's `composer.json`:
 
 ```json
 {
     "repositories": [
-        { "type": "path", "url": "packages/monitorhub-client" }
-    ],
-    "require": {
-        "csn/monitorhub-client": "*"
-    }
+        {
+            "type": "vcs",
+            "url": "https://github.com/arafat-dev/monitorhub-client.git"
+        }
+    ]
 }
 ```
 
+Until a stable version is tagged, install the main branch:
+
 ```bash
-composer update csn/monitorhub-client
+composer require monitorhub/client:dev-main
 ```
 
-(Once things stabilize you can instead push this to a private GitHub repo
-and use a `vcs` repository, or your own Composer/Satis registry, so every
-project pulls the same versioned copy.)
+After creating a `v1.0.0` Git tag, consumers can install a stable constraint:
+
+```bash
+composer require monitorhub/client:^1.0
+```
+
+If the repository is submitted to Packagist or a private Composer registry, the
+`repositories` entry is not needed.
 
 ## Configure
 
-Add to `.env`:
+Create a project in MonitorHub and add its generated settings to the consumer
+application's `.env`:
 
-```
-MONITOR_URL=https://monitor.csnbd.com
-MONITOR_PROJECT_KEY=the-api-key-from-the-projects-table
+```dotenv
+MONITOR_URL=https://monitor.example.com
+MONITOR_PROJECT_KEY=generated-project-api-key
 MONITOR_ENABLED=true
 ```
 
-That's it. On the next request:
-- Any reportable exception is captured (with the rendered error-page HTML
-  when `APP_DEBUG=true`, used server-side for the screenshot) and queued
-  off to the central app.
-- Every request/response is logged (IP, params/body, response, status,
-  duration) and queued off to append to today's log file for this project.
+Laravel discovers `CsnMonitor\MonitorClientServiceProvider` automatically. No
+manual provider, exception handler, or middleware registration is required.
 
-Optionally publish the config to tweak excluded fields/paths:
+Publish the configuration only when the defaults need to be customized:
 
 ```bash
 php artisan vendor:publish --tag=monitor-config
 ```
 
-## Requirements
-- A queue worker running in the client project (`php artisan queue:work`),
-  since both exception and access-log reporting happen via queued jobs so
-  they never add latency to real requests. If no queue worker is running,
-  switch `QUEUE_CONNECTION=sync` temporarily only for testing.
+## Queue
+
+Exception and access-log payloads are queued so telemetry does not add latency
+to the monitored request. Run a queue worker in production:
+
+```bash
+php artisan queue:work
+```
+
+Use `QUEUE_CONNECTION=sync` only for local testing when no worker is running.
+
+## Captured Data
+
+- Reportable exceptions, stack frames, request URL, method, and sanitized input
+- Request IP, method, sanitized URL/input, response status/body, and duration
+- Client-side timestamps with timezone offsets
+
+Sensitive fields listed in `monitor.except_fields` are recursively redacted.
+Binary responses are not captured, and text responses are truncated to the
+configured maximum length.
+
+## Updating
+
+```bash
+composer update monitorhub/client
+```
