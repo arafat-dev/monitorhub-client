@@ -7,35 +7,11 @@ discovery.
 
 ## Install
 
-### Private GitHub repository
-
-Add the repository once in the consumer application's `composer.json`:
-
-```json
-{
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/arafat-dev/monitorhub-client.git"
-        }
-    ]
-}
-```
-
-Until a stable version is tagged, install the main branch:
+Install the latest stable release from Packagist:
 
 ```bash
-composer require monitorhub/client:dev-main
+composer require monitorhub/client
 ```
-
-After creating a `v1.0.0` Git tag, consumers can install a stable constraint:
-
-```bash
-composer require monitorhub/client:^1.0
-```
-
-If the repository is submitted to Packagist or a private Composer registry, the
-`repositories` entry is not needed.
 
 ## Configure
 
