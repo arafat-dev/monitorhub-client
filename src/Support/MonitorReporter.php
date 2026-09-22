@@ -166,6 +166,8 @@ class MonitorReporter
                 }
 
                 $sourceLine = self::truncate(rtrim((string) $source->current(), "\r\n"), 1000);
+                $sourceLine = $sourceLine === '' ? ' ' : $sourceLine;
+
                 if ($lineNumber < $line) {
                     $pre[] = $sourceLine;
                 } elseif ($lineNumber === $line) {
