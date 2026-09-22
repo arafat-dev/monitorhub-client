@@ -11,6 +11,77 @@ use Throwable;
 
 class MonitorReporter
 {
+    const LEVEL_CRITICAL = 'critical';
+
+    const LEVEL_ERROR = 'error';
+
+    const LEVEL_WARNING = 'warning';
+
+    const LEVEL_INFO = 'info';
+
+    public static function levels(): array
+    {
+        return [
+            self::LEVEL_CRITICAL,
+            self::LEVEL_ERROR,
+            self::LEVEL_WARNING,
+            self::LEVEL_INFO,
+        ];
+    }
+
+    public static function normalizeLevel($level, $fallback = null): string
+    {
+        if ($fallback === null) {
+            $fallback = self::LEVEL_ERROR;
+        }
+
+        if (! is_string($level)) {
+            return $fallback;
+        }
+
+        $normalized = strtolower(trim($level));
+
+        return in_array($normalized, self::levels(), true) ? $normalized : $fallback;
+    }
+
+    /**
+     * Sentry-style manual capture for handled exceptions.
+     *
+     * Never throws: telemetry failures must not break the consuming app.
+     *
+     * try {
+     *     Http::post($socketUrl.'/event-notify', [...]);
+     * } catch (Throwable $e) {
+     *     Monitor::captureException($e, Monitor::LEVEL_WARNING);
+     * }
+     *
+     * @param  mixed  $level
+     */
+    public static function captureException(Throwable $e, $level = null, ?Request $request = null): void
+    {
+        try {
+            if ($request === null && function_exists('app')) {
+                try {
+                    $app = app();
+
+                    if (method_exists($app, 'runningInConsole') && ! $app->runningInConsole() && function_exists('request')) {
+                        $candidate = request();
+
+                        if ($candidate instanceof Request) {
+                            $request = $candidate;
+                        }
+                    }
+                } catch (Throwable $throwable) {
+                    $request = null;
+                }
+            }
+
+            self::reportException($e, $request, $level === null ? self::LEVEL_ERROR : $level);
+        } catch (Throwable $throwable) {
+            // Monitoring must never replace or break the application's original failure.
+        }
+    }
+
     public static function shouldHandle(): bool
     {
         return (bool) config('monitor.enabled') && config('monitor.url') && config('monitor.project_key');
@@ -44,35 +115,47 @@ class MonitorReporter
         return $data;
     }
 
-    public static function reportException(Throwable $e, ?Request $request = null): void
+    /**
+     * @param  mixed  $level
+     */
+    public static function reportException(Throwable $e, ?Request $request = null, $level = null): void
     {
-        if (! self::shouldHandle() || ($request && self::isExceptPath($request->path()))) {
-            return;
-        }
+        try {
+            $normalizedLevel = $level === null
+                ? self::LEVEL_CRITICAL
+                : self::normalizeLevel($level, self::LEVEL_ERROR);
 
-        foreach ($e->getTrace() as $frame) {
-            if (in_array($frame['class'] ?? null, [
-                ReportAccessLogToMonitor::class,
-                ReportErrorToMonitor::class,
-            ], true)) {
+            if (! self::shouldHandle() || ($request && self::isExceptPath($request->path()))) {
                 return;
             }
-        }
 
-        try {
-            Bus::dispatch(new ReportErrorToMonitor([
-                'exception_class' => get_class($e),
-                'message' => $e->getMessage() ?: '(no message)',
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'frames' => self::frames($e),
-                'url' => $request ? self::sanitizedUrl($request) : null,
-                'method' => $request ? $request->method() : null,
-                'request_data' => $request ? self::sanitize($request->all()) : null,
-                'context' => $request ? self::requestContext($request) : null,
-                'occurred_at' => now()->toIso8601String(),
-            ]));
+            foreach ($e->getTrace() as $frame) {
+                if (in_array($frame['class'] ?? null, [
+                    ReportAccessLogToMonitor::class,
+                    ReportErrorToMonitor::class,
+                ], true)) {
+                    return;
+                }
+            }
+
+            try {
+                Bus::dispatch(new ReportErrorToMonitor([
+                    'exception_class' => get_class($e),
+                    'message' => $e->getMessage() ?: '(no message)',
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'level' => $normalizedLevel,
+                    'trace' => $e->getTraceAsString(),
+                    'frames' => self::frames($e),
+                    'url' => $request ? self::sanitizedUrl($request) : null,
+                    'method' => $request ? $request->method() : null,
+                    'request_data' => $request ? self::sanitize($request->all()) : null,
+                    'context' => $request ? self::requestContext($request) : null,
+                    'occurred_at' => now()->toIso8601String(),
+                ]));
+            } catch (Throwable $throwable) {
+                // Monitoring must never replace or break the application's original failure.
+            }
         } catch (Throwable $throwable) {
             // Monitoring must never replace or break the application's original failure.
         }

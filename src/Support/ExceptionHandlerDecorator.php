@@ -30,7 +30,11 @@ class ExceptionHandlerDecorator implements ExceptionHandler
         $this->handler->report($e);
 
         if ($this->handler->shouldReport($e) && ! $this->alreadyReported($e)) {
-            MonitorReporter::reportException($e, app()->runningInConsole() ? null : request());
+            MonitorReporter::reportException(
+                $e,
+                app()->runningInConsole() ? null : request(),
+                MonitorReporter::LEVEL_CRITICAL
+            );
             $this->markReported($e);
         }
     }

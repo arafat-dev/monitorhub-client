@@ -77,6 +77,26 @@ Sensitive fields listed in `monitor.except_fields` are recursively redacted.
 Binary responses are not captured, and text responses are truncated to the
 configured maximum length.
 
+## Manual Capture (Sentry-style)
+
+Report a handled exception from a `catch` block without breaking the app.
+Reporting never throws, so the original flow continues:
+
+```php
+use CsnMonitor\Monitor;
+use Throwable;
+
+try {
+    Http::post("{$socketUrl}/event-notify", [...]);
+} catch (Throwable $e) {
+    Monitor::captureException($e, Monitor::LEVEL_WARNING);
+}
+```
+
+Levels: `critical` (system-breaking/unhandled), `error` (codebase failure),
+`warning`, `info`. Unhandled exceptions captured automatically are `critical`;
+manual captures default to `error` when no level is given.
+
 ## Updating
 
 ```bash
