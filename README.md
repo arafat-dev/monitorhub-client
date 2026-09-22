@@ -61,6 +61,27 @@ execution for the same request is ignored.
 Set `MONITOR_CAPTURE_ACCESS_LOGS=false` to collect exceptions only and avoid an
 access-log job for every request.
 
+## Query Issues (N+1 Detection)
+
+The package listens to database queries and groups identical query shapes by
+their application caller. A query reported only after repeating
+`MONITOR_QUERY_ISSUE_THRESHOLD` times (default `15`) in a single request, and
+only a bounded summary (query, count, total/average time, file and line, a few
+sample bindings, and an eager-loading suggestion) is attached to the access
+log. Full query lists are never sent.
+
+Collection is in-memory during the request and flushed after the response is
+sent through the terminating middleware, then dispatched on the queue — the
+monitored request never waits on telemetry. Per-query overhead is a single
+array increment plus one bounded backtrace per unique query shape.
+
+```dotenv
+MONITOR_CAPTURE_QUERY_ISSUES=true
+MONITOR_QUERY_ISSUE_THRESHOLD=15
+```
+
+Set `MONITOR_CAPTURE_QUERY_ISSUES=false` to disable query listening entirely.
+
 ## Captured Data
 
 - Reportable exceptions, stack frames, request URL, method, and sanitized input

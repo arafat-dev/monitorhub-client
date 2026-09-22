@@ -5,6 +5,7 @@ namespace CsnMonitor\Http\Middleware;
 use Closure;
 use CsnMonitor\Jobs\ReportAccessLogToMonitor;
 use CsnMonitor\Support\MonitorReporter;
+use CsnMonitor\Support\QueryIssueCollector;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Bus;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,6 +20,10 @@ class LogMonitorRequests
     public function handle(Request $request, Closure $next): Response
     {
         $request->attributes->set(self::STARTED_AT, microtime(true));
+
+        // Fresh per-request state so long-lived workers (Octane, queue)
+        // never leak query counts from a previous execution.
+        QueryIssueCollector::reset();
 
         return $next($request);
     }
@@ -55,6 +60,17 @@ class LogMonitorRequests
 
         $startedAt = (float) $request->attributes->get(self::STARTED_AT, microtime(true));
 
+        $queryIssues = [];
+        try {
+            if (config('monitor.capture_query_issues', true)) {
+                $queryIssues = QueryIssueCollector::flush();
+            } else {
+                QueryIssueCollector::reset();
+            }
+        } catch (Throwable $throwable) {
+            $queryIssues = [];
+        }
+
         try {
             Bus::dispatch(new ReportAccessLogToMonitor([
                 'ip' => $request->ip(),
@@ -65,6 +81,7 @@ class LogMonitorRequests
                 'status' => $response->getStatusCode(),
                 'duration_ms' => round((microtime(true) - $startedAt) * 1000, 2),
                 'context' => MonitorReporter::requestContext($request),
+                'query_issues' => $queryIssues !== [] ? $queryIssues : null,
                 'logged_at' => now()->toIso8601String(),
             ]));
         } catch (Throwable $throwable) {

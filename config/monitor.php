@@ -39,4 +39,16 @@ return [
     // Limit source capture to the first application frames to keep queued payloads bounded.
     'source_context_frames' => env('MONITOR_SOURCE_CONTEXT_FRAMES', 5),
 
+    // Detect repeated (N+1) queries per request. Collection is in-memory only;
+    // a summary is attached to the access log after the response is sent, so
+    // the monitored request never waits on telemetry.
+    'capture_query_issues' => env('MONITOR_CAPTURE_QUERY_ISSUES', true),
+
+    // A query shape reported only after repeating this many times in one request.
+    'query_issue_threshold' => env('MONITOR_QUERY_ISSUE_THRESHOLD', 15),
+
+    // Bounds kept on the reported summary so payloads stay small.
+    'query_issue_max_issues' => 5,
+    'query_issue_max_samples' => 2,
+
 ];
