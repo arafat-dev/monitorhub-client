@@ -33,4 +33,10 @@ return [
     // Cap response body size stored per access-log line (bytes) to keep the day-wise files small.
     'max_response_length' => 2000,
 
+    // Source lines captured before and after an application stack frame.
+    'source_context_lines' => 15,
+
+    // Limit source capture to the first application frames to keep queued payloads bounded.
+    'source_context_frames' => env('MONITOR_SOURCE_CONTEXT_FRAMES', 5),
+
 ];

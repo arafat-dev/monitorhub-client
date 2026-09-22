@@ -64,9 +64,10 @@ class LogMonitorRequests
                 'response' => $body,
                 'status' => $response->getStatusCode(),
                 'duration_ms' => round((microtime(true) - $startedAt) * 1000, 2),
+                'context' => MonitorReporter::requestContext($request),
                 'logged_at' => now()->toIso8601String(),
             ]));
-        } catch (Throwable) {
+        } catch (Throwable $throwable) {
             // Telemetry dispatch failures must not affect the monitored response.
         }
     }

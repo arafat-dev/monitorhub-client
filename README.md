@@ -64,8 +64,14 @@ access-log job for every request.
 ## Captured Data
 
 - Reportable exceptions, stack frames, request URL, method, and sanitized input
-- Request IP, method, sanitized URL/input, response status/body, and duration
+- 15 source lines before and after the failing application stack frames
+- Request IP, browser, platform, device type, sanitized URL/input, response status/body, and duration
 - Client-side timestamps with timezone offsets
+
+MonitorHub automatically enriches public IP addresses with cached country,
+region, city, timezone, and ISP details. No client environment variables are
+required. IP geolocation is approximate and cannot provide a verified street
+or home address.
 
 Sensitive fields listed in `monitor.except_fields` are recursively redacted.
 Binary responses are not captured, and text responses are truncated to the
